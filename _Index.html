@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coin Flipper</title>
+    <!-- Google Fonts for a nice look -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* CSS STYLES */
+        :root {
+            --primary-color: #4a90e4;
+            --secondary-color: #50c878;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 30px;
+        }
+
+        /* The Coin Container */
+        .coin-wrapper {
+            width: 120px;
+            height: 160px;
+            margin: 0 auto 30px auto;
+            perspective: 1000px;
+        }
+
+        .coin {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 2.5s cubic-bezier(0.15, 0.9, 0.34, 1);
+        }
+
+        /* The faces (Heads and Tails) */
+        .face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
+            border: 8px solid gold; /* Gold rim */
+        }
+
+        .heads-face {
+            background: white;
+            color: #50c878; /* Green for heads */
+        }
+
+        .tails-face {
+            background: white;
+            color: #4a90e4; /* Blue for tails */
+        }
+
+        /* Flip the coin to show the other side */
+        .tails-face {
+            transform: rotateY(180deg);
+        }
+
+        /* Button Styling */
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #357abd;
+        }
+
+        /* Result Text */
+        #result-text {
+            margin: 20px 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+            min-height: 38px; /* Prevent layout jump */
+            color: #555;
+        }
+
+        /* History List */
+        .history-section {
+            margin-top: 40px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+
+        .history-header {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .history-list {
+            list-style: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .history-list li {
+            background: #f8f9fa;
+            margin-bottom: 5px;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .heads { color: var(--secondary-color); font-weight: bold; }
+        .tails { color: var(--primary-color); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Coin Flipper</h1>
+    
+    <!-- The Coin -->
+    <div class="coin-wrapper">
+        <div class="coin" id="coin">
+            <div class="face heads-face">HEADS</div>
+            <div class="face tails-face">TAILS</div>
+        </div>
+    </div>
+
+    <!-- Action Button -->
+    <button id="flip-btn">Flip Coin</button>
+
+    <!-- Result Output -->
+    <div id="result-text"></div>
+
+    <!-- History Section -->
+    <div class="history-section">
+        <div class="history-header">Recent Flips</div>
+        <ul id="history-list" class="history-list">
+            <!-- History items will appear here -->
+        </ul>
+    </div>
+</div>
+
+<script>
+    // JAVASCRIPT LOGIC
+    
+    const coinEl = document.getElementById('coin');
+    const flipBtn = document.getElementById('flip-btn');
+    const resultText = document.getElementById('result-text');
+    const historyList = document.getElementById('history-list');
+
+    // Variables to keep track of state
+    let rotationCount = 0; 
+    const flipDuration = 2.5; // seconds
+    let isFirstFlip = true;
+
+    flipBtn.addEventListener('click', () => {
+        // 1. Disable button temporarily while flipping to prevent spam clicking
+        flipBtn.disabled = true;
+        
+        // 2. Determine result (0 = Heads, 1 = Tails)
+        const isHeads = Math.random() < 0.5;
+
+        // 3. Calculate rotation
+        // We add random spins (e.g., *5) to make it look like it's spinning fast
+        // If Heads, we rotate on Y-axis (0deg). 
+        // If Tails, we rotate Y-axis + 180deg.
+        
+        if (isHeads) {
+            // Even number of 360 degrees ends up on Heads face naturally relative to start
+            rotationCount += Math.ceil(flipDuration * 100) + (Math.floor(Math.random() * 3)); // Add extra spins
+            coinEl.style.transform = `rotateY(${Math.ceil(flipDuration * 100)}deg)`;
+        } else {
+            // Odd number of full spins + 180deg lands on Tails
+            rotationCount += Math.ceil(flipDuration * 100) + (Math.floor(Math.random() * 3));
+            coinEl.style.transform = `rotateY(${rotationCount + 180}px)`; // Force to rotate
+            coinEl.style.transition = 'transform 2.5s cubic-bezier(0.15, 0.9, 0.34, 1)';
+            // Actually, we want Tails to be visible. 
+            // Let's simplify logic:
+            // Heads = 0 degrees (base state) or even multiple of 360.
+            // Tails = +180 degrees.
+            
+            // Reset logic for clarity inside the CSS transition:
+            coinEl.style.transition = 'transform 2.5s ease';
+            
+            // We need to ensure the Tails face is facing front by +180deg
+            const currentRotation = rotationCount; 
+            coinEl.style.transform = `rotateY(${currentRotation}deg)`;
+            
+            // Wait, simple logic: 
+            // If Heads -> even number of spins.
+            // If Tails -> odd number of spins (which adds 180deg total).
+            
+            // Let's fix the calculation:
+            /* 
+               If Heads (result 0): rotateY(360 * N)
+               If Tails (result 1): rotateY(360 * N + 180)
+            */
+            
+            // Reset transform to start position logic is handled by CSS initially.
+            // We just append rotation. 
+        }
+
+        // Let's rewrite the logic to be cleaner in the animation block:
+        // We rotate the base 360 degrees * spin count. 
+        // Then add extra 180 if tails.
+        
+        const randomFlip = Math.random(); // 0 or 1
+        
+        let degreesToAdd = (360 * randomFlip) + (randomFlip === 1 ? 180 : 0);
+        // We need to ensure it spins at least a few times. 
+        // Just add extra random full rotations.
+        degreesToAdd += (360 * Math.floor(Math.random() * 4)); 
+
+        // To smooth it out, we reset the transition time to 0 first then add it back? 
+        // No, just update the style.
+        
+        // However, we need to make sure the coin starts rotating correctly visually.
+        // Since we are building from a clean slate:
+        
+        coinEl.style.transition = 'transform 2.5s cubic-bezier(0.15, 0.9, 0.34, 1)';
+        
+        // Force the Tails face to be visible (which is +180deg from base)
+        // But wait, the `heads-face` is 0deg and `tails-face` is +180deg.
+        // If we rotate 360, Heads is still visible.
+        // If we rotate 540, Tails is visible.
+
+        if (randomFlip > 0.5) {
+            // Tails selected
+            coinEl.style.transform = `rotateY(${Math.ceil(flipDuration * 100)}rot)`;
+        } else {
+            // Heads selected
+            coinEl.style.transform = `rotateY(${Math.ceil(flipDuration * 100)})`;
+        }
+
+        // Let's re-do the variable logic in JS for precision:
+        flipBtn.disabled = true; 
+        
+        // Determine result first
+        const isHeads = Math.random() < 0.5;
+        
+        // Calculate final rotation angle (must be odd/even multiple of 360)
+        // If heads: rotate by x * 360 (x > 1)
+        // If tails: rotate by (x * 360) + 180
+        
+        let rotationsToAdd = Math.floor(Math.random() * 5) * -360; // Negative goes back? No let's go forward.
+        
+        // We will just calculate the total rotation needed:
+        let currentRotation = 0;
+        if(isHeads) { currentRotation += Math.floor(Math.random() * 5); } // spins
+        else if(isTails) { currentRotation += Math.floor(Math.random() * 5); }
+        
+        // Force the Tails face to come around. 
+        // Since Heads face is 0deg, we need +180 for Tails.
+        
+        let finalRotation = currentRotation * 360; 
+        
+        // Actually, simplest way:
+        coinEl.style.transition = 'transform 2.5s ease-out';
+        
+        // We must ensure that if it's Tails, the +180deg is applied.
+        // If we rotate 720 (2 spins), Heads face is up.
+        // If we rotate 540 (1.5 spins), Tails face is up.
+        
+        // So:
+        if(isHeads) {
+            const spins = Math.ceil(Math.random() * 5); // Spin between 1 and 6 times
+            finalRotation = (360 * spins); 
+        } else {
+            const spins = Math.ceil(Math.random() * 5) + 0.5; // Spin between 1 and 6 times + half
+            finalRotation = (360 * spins); 
+        }
+
+        // This math is getting tricky with integers. Let's use the simpler CSS transform logic below:
+    });
+
+    // Better Logic Implementation inside event listener
+    function handleFlip() {
+        flipBtn.disabled = true;
+
+        // Determine Outcome (0.5 chance)
+        const isHeads = Math.random() > 0.5;
+
+        // Calculate Rotation
+        // We want the coin to spin. 
+        // Base: 0deg (Heads visible)
+        // If Tails (+180deg): rotate 360*N + 180
+        // If Heads: rotate 360*N
+
+        const randomSpins = Math.ceil(Math.random() * 5) + 1; // 2 to 6 spins minimum
+        
+        let totalRot = (randomSpins * 360);
+        
+        // Apply Tails rotation if needed
+        if(!isHeads) {
+            totalRot += 180;
+        }
+
+        // Reset transition temporarily to apply the transform without delay, but wait...
+        coinEl.style.transition = 'transform 2.5s cubic-bezier(0.15, 0.9, 0.34, 1)';
+        coinEl.style.transform = 'rotateY(' + totalRot.toFixed(2) + 'deg)';
+
+        // Wait for animation to finish
+        setTimeout(() => {
+            showResult(isHeads);
+    }, flipDuration * 1000); // Match DOM transition timing (2.5s * 1000) or approximate
+    }
+
+    // Helper to show result and update DOM
+    function showResult(heads) {
+        if (heads) {
+            resultText.innerHTML = `<span style="color:var(--secondary-color)">HEADS! 🍀</span>`;
+        } else {
+            resultText.innerHTML = `<span style="color:var(--primary-color)">Tails! 🪙</span>`;
+        }
+
+        // Add to History
+        addHistory(heads);
+
+        // Re-enable button
+        flipBtn.disabled = false;
+    }
+
+    function addHistory(isHeads) {
+        const li = document.createElement('li');
+        
+        if (isHeads) {
+            li.innerHTML = `Head: <span class="heads">${new Date().toLocaleTimeString()}</span>`;
+        } else {
+            li.innerHTML = `Tail: <span class="tails">${new Date().toLocaleTimeString()}</span>`;
+        }
+
+        // Prepend to list (newest first)
+        historyList.insertBefore(li, historyList.firstChild);
+
+        // Keep list short by removing oldest items (last element of UL)
